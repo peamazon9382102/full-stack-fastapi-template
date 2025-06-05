@@ -1,7 +1,7 @@
 "use client"
 
 import type { IconButtonProps, SpanProps } from "@chakra-ui/react"
-import { ClientOnly, IconButton, Skeleton, Span } from "@chakra-ui/react"
+import { ClientOnly, IconButton, Skeleton, Span, useColorMode as useChakraNativeColorMode } from "@chakra-ui/react"
 import { ThemeProvider, useTheme } from "next-themes"
 import type { ThemeProviderProps } from "next-themes"
 import * as React from "react"
@@ -19,24 +19,53 @@ export type ColorMode = "light" | "dark" | "green"
 
 export interface UseColorModeReturn {
   colorMode: ColorMode
-  setColorMode: (colorMode: ColorMode) => void
+  setColorMode: (colorMode: ColorMode | "system") => void
   toggleColorMode: () => void
 }
 
 export function useColorMode(): UseColorModeReturn {
-  const { resolvedTheme, setTheme } = useTheme()
-  const toggleColorMode = () => {
-    setTheme(resolvedTheme === "dark" ? "light" : "dark")
-  }
+  const { setColorMode: setChakraColorModeInternal } = useChakraNativeColorMode();
+  const { theme: currentNextTheme, resolvedTheme, setTheme: setNextTheme } = useTheme();
+
+  React.useEffect(() => {
+    if (resolvedTheme === "green") {
+      setChakraColorModeInternal("light");
+    } else if (resolvedTheme === "dark") {
+      setChakraColorModeInternal("dark");
+    } else if (resolvedTheme === "light") {
+      setChakraColorModeInternal("light");
+    }
+    // Not explicitly handling "system" here, as resolvedTheme will be light/dark
+  }, [resolvedTheme, setChakraColorModeInternal]);
+
+  const setTheme = React.useCallback((newTheme: ColorMode | "system") => {
+    setNextTheme(newTheme);
+    // The useEffect above will handle syncing Chakra's mode.
+    // If newTheme is 'green', Chakra will become 'light'.
+    // If newTheme is 'light', Chakra will become 'light'.
+    // If newTheme is 'dark', Chakra will become 'dark'.
+    // If newTheme is 'system', next-themes resolves it, then useEffect syncs.
+  }, [setNextTheme]);
+
+  const toggleColorMode = React.useCallback(() => {
+    // Toggles between light and dark. If current is green, it's treated as light by next-themes for toggling.
+    // So if green (resolved to light for toggle), goes to dark. If dark, goes to light.
+    const targetTheme = resolvedTheme === "dark" ? "light" : "dark";
+    setTheme(targetTheme);
+  }, [resolvedTheme, setTheme]);
+
   return {
-    colorMode: resolvedTheme as ColorMode,
+    colorMode: resolvedTheme as ColorMode, // This can be 'green'
     setColorMode: setTheme,
     toggleColorMode,
-  }
+  };
 }
 
 export function useColorModeValue<T>(light: T, dark: T) {
   const { colorMode } = useColorMode()
+  // If the current theme is "green", we want to use the "light" values for useColorModeValue.
+  // The actual green styling is handled by CSS variables targeting html.green.
+  // Chakra's internal mode will be 'light' when 'green' is active.
   return colorMode === "dark" ? dark : light
 }
 

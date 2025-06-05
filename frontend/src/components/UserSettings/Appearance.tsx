@@ -22,6 +22,7 @@ const Appearance = () => {
             <Radio value="system">System</Radio>
             <Radio value="light">Light Mode</Radio>
             <Radio value="dark">Dark Mode</Radio>
+            <Radio value="green">Green Mode</Radio>
           </Stack>
         </RadioGroup>
       </Container>
